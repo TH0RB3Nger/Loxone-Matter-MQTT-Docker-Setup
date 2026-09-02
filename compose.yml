@@ -1,0 +1,266 @@
+# ============================================================
+# Docker Compose
+# ============================================================
+#
+# Enthaltene Dienste:
+#
+#   1. Matterbridge
+#   2. Portainer
+#   3. Mosquitto MQTT Broker
+#   4. Ambientika MQTT Bridge
+#
+# Die Konfiguration erfolgt über:
+#
+#   .env
+#   config.yaml
+#
+# ============================================================
+
+
+services:
+
+
+  # ==========================================================
+  # MATTERBRIDGE
+  # ==========================================================
+  #
+  # Matterbridge bekommt weiterhin eine eigene IP im LAN.
+  #
+  # Das bestehende Macvlan wird verwendet.
+  #
+  # ==========================================================
+
+  matterbridge:
+
+    # Matterbridge Image
+    image: luligu/matterbridge:latest
+
+    # Fester Containername
+    container_name: matterbridge-loxone
+
+    # Nach Neustart automatisch starten
+    restart: unless-stopped
+
+    # Zeitzone
+    environment:
+      TZ: ${TZ}
+
+    # Persistente Daten
+    volumes:
+      - ${MATTERBRIDGE_DATA}:/root/.matterbridge
+
+    # Eigene IP im LAN
+    networks:
+      matter_net:
+        ipv4_address: ${MATTERBRIDGE_IP}
+
+
+  # ==========================================================
+  # PORTAINER
+  # ==========================================================
+
+  portainer:
+
+    # Portainer Community Edition
+    image: portainer/portainer-ce:latest
+
+    # Fester Containername
+    container_name: portainer
+
+    # Automatischer Neustart
+    restart: unless-stopped
+
+    # Zeitzone
+    environment:
+      TZ: ${TZ}
+
+    # Persistente Portainer-Daten
+    volumes:
+
+      - ${PORTAINER_DATA}:/data
+
+      # Docker API
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # Portweiterleitungen
+    ports:
+
+      # HTTP
+      - "${PORTAINER_HTTP_PORT}:9000"
+
+      # HTTPS
+      - "${PORTAINER_HTTPS_PORT}:9443"
+
+
+  # ==========================================================
+  # MOSQUITTO MQTT BROKER
+  # ==========================================================
+  #
+  # Mosquitto ist der zentrale MQTT-Broker.
+  #
+  # Intern:
+  #
+  #   ambientika-bridge -> mosquitto:1883
+  #
+  # Im LAN:
+  #
+  #   Loxone -> Synology-IP:1883
+  #
+  # ==========================================================
+
+  mosquitto:
+
+    # Offizielles Eclipse Mosquitto Image
+    image: eclipse-mosquitto:2
+
+    # Fester Containername
+    container_name: mosquitto
+
+    # Automatischer Neustart
+    restart: unless-stopped
+
+    # Zeitzone
+    environment:
+      TZ: ${TZ}
+
+    # MQTT Port auf der Synology
+    ports:
+
+      - "${MQTT_PORT}:1883"
+
+    # Persistente Konfiguration und Daten
+    volumes:
+
+      # Mosquitto Konfiguration
+      - ${MQTT_DATA}/config:/mosquitto/config
+
+      # Persistente MQTT-Daten
+      - ${MQTT_DATA}/data:/mosquitto/data
+
+      # Mosquitto Logs
+      - ${MQTT_DATA}/log:/mosquitto/log
+
+    # Internes MQTT-Netzwerk
+    networks:
+
+      - mqtt_net
+
+
+  # ==========================================================
+  # AMBIENTIKA MQTT BRIDGE
+  # ==========================================================
+  #
+  # Die Bridge wird lokal aus dem offiziellen Git Repository
+  # gebaut.
+  #
+  # Der Source-Code befindet sich unter:
+  #
+  #   ${AMBIENTIKA_DATA}/source
+  #
+  # ==========================================================
+
+  ambientika-bridge:
+
+    # Name des lokal gebauten Images
+    image: ${AMBIENTIKA_IMAGE}
+
+    # Image aus dem offiziellen Source-Code bauen
+    build:
+
+      # Repository-Verzeichnis
+      context: ${AMBIENTIKA_DATA}/source
+
+      # Version als Build-Argument
+      args:
+
+        BUILD_VERSION: ${AMBIENTIKA_BRANCH}
+
+    # Fester Containername
+    container_name: ambientika-mqtt-bridge
+
+    # Automatischer Neustart
+    restart: unless-stopped
+
+    # Zeitzone und Zugangsdaten
+    environment:
+
+      TZ: ${TZ}
+
+      # ------------------------------------------------------
+      # Ambientika Cloud
+      #
+      # Die Bridge unterstützt diese Environment-Overrides.
+      # ------------------------------------------------------
+
+      AMBIENTIKA_USER: ${AMBIENTIKA_USER}
+      AMBIENTIKA_PASS: ${AMBIENTIKA_PASS}
+
+      # ------------------------------------------------------
+      # MQTT
+      #
+      # Innerhalb des Docker-Netzwerks:
+      #
+      #   mosquitto:1883
+      #
+      # ------------------------------------------------------
+
+      MQTT_HOST: ${MQTT_HOST}
+      MQTT_PORT: ${MQTT_PORT}
+
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+
+    # Unsere zentrale Konfigurationsdatei
+    volumes:
+
+      - ${AMBIENTIKA_CONFIG_FILE:-./config.yaml}:/config/config.yaml:ro
+
+    # Mosquitto muss gestartet sein
+    depends_on:
+
+      - mosquitto
+
+    # Bridge verwendet ausschließlich das interne MQTT-Netzwerk
+    networks:
+
+      - mqtt_net
+
+
+# ============================================================
+# NETZWERKE
+# ============================================================
+
+networks:
+
+
+  # ==========================================================
+  # MATTERBRIDGE MACVLAN
+  # ==========================================================
+  #
+  # Dieses Netzwerk wird vom deploy.sh Script verwaltet.
+  #
+  # ==========================================================
+
+  matter_net:
+
+    external: true
+
+    name: ${MACVLAN_NETWORK}
+
+
+  # ==========================================================
+  # INTERNES MQTT NETZWERK
+  # ==========================================================
+  #
+  # Nur:
+  #
+  #   Mosquitto
+  #   Ambientika Bridge
+  #
+  # benötigen dieses Netzwerk.
+  #
+  # ==========================================================
+
+  mqtt_net:
+
+    driver: bridge

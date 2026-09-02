@@ -1,0 +1,424 @@
+# ============================================================
+# Ambientika MQTT Bridge
+# ============================================================
+#
+# Zentrale Funktionskonfiguration der Ambientika MQTT Bridge.
+#
+# Zugangsdaten:
+#
+#   .env
+#
+# Docker / Ports / Pfade:
+#
+#   .env
+#
+# Diese Datei enthält die eigentliche Bridge-Konfiguration.
+#
+# ============================================================
+
+
+# ============================================================
+# AMBIENTIKA CLOUD
+# ============================================================
+
+ambientika:
+
+  # ----------------------------------------------------------
+  # Ambientika Benutzername
+  #
+  # Wird absichtlich über .env gesetzt.
+  # ----------------------------------------------------------
+
+  username: ""
+
+  # ----------------------------------------------------------
+  # Ambientika Passwort
+  #
+  # Wird absichtlich über .env gesetzt.
+  # ----------------------------------------------------------
+
+  password: ""
+
+  # ----------------------------------------------------------
+  # Ambientika Cloud API
+  # ----------------------------------------------------------
+
+  host: "https://app.ambientika.eu:4521"
+
+
+# ============================================================
+# MQTT
+# ============================================================
+
+mqtt:
+
+  # ----------------------------------------------------------
+  # MQTT Broker
+  #
+  # Innerhalb von Docker:
+  #
+  #   mosquitto
+  #
+  # Die Variable MQTT_HOST aus .env überschreibt diesen Wert.
+  # ----------------------------------------------------------
+
+  host: "mosquitto"
+
+  # MQTT Port
+  port: 1883
+
+  # ----------------------------------------------------------
+  # MQTT Benutzer
+  #
+  # Wird über .env an den Container übergeben.
+  # ----------------------------------------------------------
+
+  username: ""
+
+  # MQTT Passwort
+  password: ""
+
+  # ----------------------------------------------------------
+  # TLS
+  #
+  # false = MQTT über normales TCP
+  # true  = MQTT über TLS
+  #
+  # Für das lokale LAN zunächst false.
+  # ----------------------------------------------------------
+
+  tls: false
+
+
+# ============================================================
+# BRIDGE
+# ============================================================
+
+bridge:
+
+  # ----------------------------------------------------------
+  # MQTT Topic Prefix
+  #
+  # Beispiel:
+  #
+  #   ambientika/DEVICE123/state
+  #
+  # ----------------------------------------------------------
+
+  topic_prefix: "ambientika"
+
+  # ----------------------------------------------------------
+  # Home Assistant MQTT Discovery Prefix
+  # ----------------------------------------------------------
+
+  discovery_prefix: "homeassistant"
+
+  # ----------------------------------------------------------
+  # Home Assistant Auto Discovery
+  #
+  # true:
+  #   Discovery Topics werden veröffentlicht.
+  #
+  # false:
+  #   Keine Discovery-Konfiguration.
+  #
+  # Kann später problemlos deaktiviert werden, wenn nur
+  # Loxone verwendet wird.
+  # ----------------------------------------------------------
+
+  enable_discovery: true
+
+  # ----------------------------------------------------------
+  # Abfrageintervall
+  #
+  # Sekunden zwischen den Abfragen der Ambientika Cloud.
+  # ----------------------------------------------------------
+
+  poll_interval: 30
+
+  # ----------------------------------------------------------
+  # Anzahl aufeinanderfolgender fehlgeschlagener Abfragen,
+  # bevor ein Gerät auf MQTT als offline markiert wird.
+  #
+  # 1 = beim ersten Fehler offline
+  # 3 = drei aufeinanderfolgende Fehler
+  # ----------------------------------------------------------
+
+  availability_failure_threshold: 3
+
+  # ----------------------------------------------------------
+  # Log-Level
+  #
+  # Mögliche Werte:
+  #
+  #   DEBUG
+  #   INFO
+  #   WARNING
+  #   ERROR
+  #
+  # ----------------------------------------------------------
+
+  log_level: "INFO"
+
+
+# ============================================================
+# NEURACELL-X
+# RADON-SCHUTZ
+# ============================================================
+#
+# Radon-Schutz hat höchste Priorität.
+#
+# Bei Radonalarm:
+#
+#   alle Geräte
+#       ↓
+#   Intake / Zuluft
+#       ↓
+#   Fan Low / Stufe 1
+#
+# Wird der Alarm beendet, wird der vorherige Zustand
+# wiederhergestellt.
+#
+# ============================================================
+
+neuracell:
+
+  # ----------------------------------------------------------
+  # NeuraCell-X aktivieren
+  # ----------------------------------------------------------
+
+  neuracell_enabled: true
+
+  # ----------------------------------------------------------
+  # MQTT Topic für numerischen Radonwert
+  #
+  # Beispiel:
+  #
+  #   ambientika/radon/value
+  #
+  # Payload:
+  #
+  #   150
+  #   250
+  #   350
+  #
+  # ----------------------------------------------------------
+
+  radon_topic: "ambientika/radon/value"
+
+  # ----------------------------------------------------------
+  # MQTT Topic für expliziten Radonalarm
+  #
+  # Mögliche Payloads sind beispielsweise:
+  #
+  #   ON
+  #   OFF
+  #   true
+  #   false
+  #   1
+  #   0
+  #
+  # ----------------------------------------------------------
+
+  radon_alarm_topic: "ambientika/radon/alarm"
+
+  # ----------------------------------------------------------
+  # Radon-Grenzwert
+  #
+  # Ab diesem Wert wird der Schutz aktiviert.
+  #
+  # Einheit:
+  #
+  #   Bq/m³
+  #
+  # ----------------------------------------------------------
+
+  radon_threshold: 300
+
+  # ----------------------------------------------------------
+  # Hysterese
+  #
+  # Beispiel:
+  #
+  # threshold = 300
+  # hysteresis = 50
+  #
+  # Alarm EIN:
+  #
+  #   >= 300
+  #
+  # Alarm AUS:
+  #
+  #   <= 250
+  #
+  # Dadurch wird ein ständiges Ein-/Ausschalten verhindert.
+  # ----------------------------------------------------------
+
+  radon_hysteresis: 50
+
+  # ----------------------------------------------------------
+  # Lüfterstufe während Radonschutz
+  #
+  # Normalerweise:
+  #
+  #   Low
+  #
+  # ----------------------------------------------------------
+
+  radon_protection_fan: "Low"
+
+  # ----------------------------------------------------------
+  # Quelle des Radonalarms
+  #
+  # signal:
+  #   Radonwert/-alarm kommt über MQTT.
+  #
+  # device:
+  #   Bridge liest einen Ambientika-Radonmesser direkt
+  #   aus der Ambientika Cloud.
+  #
+  # ----------------------------------------------------------
+
+  radon_source: "signal"
+
+  # ----------------------------------------------------------
+  # Seriennummer eines Ambientika-Radonsensors
+  #
+  # Nur erforderlich bei:
+  #
+  #   radon_source: "device"
+  #
+  # ----------------------------------------------------------
+
+  radon_device_serial: ""
+
+  # ----------------------------------------------------------
+  # Statusfeld des Radonsensors
+  # ----------------------------------------------------------
+
+  radon_device_alarm_field: "air_quality"
+
+  # ----------------------------------------------------------
+  # Werte, die bei einem String-Feld als Alarm gelten.
+  # ----------------------------------------------------------
+
+  radon_device_alarm_values: "Bad,Poor,Very Bad,Alarm,Alert"
+
+
+# ============================================================
+# TAUPUNKTSTEUERUNG
+# ============================================================
+#
+# Die Taupunktsteuerung verhindert Lüftung, wenn durch
+# Lüften ungünstige Feuchtigkeitssituationen entstehen würden.
+#
+# Radonschutz hat immer Vorrang.
+#
+# ============================================================
+
+dewpoint:
+
+  # ----------------------------------------------------------
+  # Taupunktsteuerung aktivieren
+  # ----------------------------------------------------------
+
+  dewpoint_enabled: true
+
+  # ----------------------------------------------------------
+  # Quelle der Taupunktinformation
+  #
+  # signal:
+  #   Externes MQTT-Sperrsignal.
+  #
+  # computed:
+  #   Taupunkt wird aus vier MQTT-Werten berechnet.
+  #
+  # device:
+  #   Ambientika TPS-Gerät direkt aus der Cloud.
+  #
+  # ----------------------------------------------------------
+
+  dewpoint_source: "signal"
+
+  # ----------------------------------------------------------
+  # MQTT Sperr-Topic
+  #
+  # Wahrer Wert bedeutet:
+  #
+  #   Lüftung blockieren
+  #
+  # ----------------------------------------------------------
+
+  dewpoint_block_topic: "ambientika/dewpoint/block"
+
+  # ----------------------------------------------------------
+  # Geräteauswahl
+  #
+  # Leer:
+  #
+  #   alle Geräte
+  #
+  # Beispiel:
+  #
+  #   "SMART,OFFICE"
+  #
+  # ----------------------------------------------------------
+
+  dewpoint_block_devices: ""
+
+  # ----------------------------------------------------------
+  # Seriennummer des TPS-Gerätes
+  #
+  # Nur bei:
+  #
+  #   dewpoint_source: "device"
+  #
+  # ----------------------------------------------------------
+
+  dewpoint_device_serial: ""
+
+  # ----------------------------------------------------------
+  # Betriebsarten, bei denen blockiert wird.
+  # ----------------------------------------------------------
+
+  dewpoint_device_block_modes: "Off"
+
+
+  # ==========================================================
+  # BERECHNETER TAUPUNKT
+  # ==========================================================
+  #
+  # Wird nur verwendet bei:
+  #
+  #   dewpoint_source: "computed"
+  #
+  # ==========================================================
+
+  # Raumtemperatur
+  dewpoint_indoor_temp_topic: "ambientika/dewpoint/indoor_temp"
+
+  # Raumfeuchtigkeit
+  dewpoint_indoor_humidity_topic: "ambientika/dewpoint/indoor_humidity"
+
+  # Außentemperatur
+  dewpoint_outdoor_temp_topic: "ambientika/dewpoint/outdoor_temp"
+
+  # Außenfeuchtigkeit
+  dewpoint_outdoor_humidity_topic: "ambientika/dewpoint/outdoor_humidity"
+
+  # ----------------------------------------------------------
+  # Taupunkt-Marge
+  #
+  # Lüftung wird blockiert, wenn die Außenbedingungen
+  # entsprechend ungünstig werden.
+  # ----------------------------------------------------------
+
+  dewpoint_margin: 1.0
+
+  # ----------------------------------------------------------
+  # Taupunkt-Hysterese
+  #
+  # Verhindert häufiges Umschalten.
+  # ----------------------------------------------------------
+
+  dewpoint_hysteresis: 0.5
